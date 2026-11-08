@@ -1,4 +1,4 @@
-# metrics.jl — welfare evaluation, summary tables, CSV output (Sec. 4, Metrics)
+# metrics.jl — welfare evaluation, summary tables, CSV output
 
 # Pull the solution of a solved CO model into plain arrays. val reads a variable's value: JuMP's value for
 # a solved model, or a lookup into saved values (the constructed start, if the model has no solution).
@@ -20,7 +20,7 @@ function read_solution(m, net::Network, sc::Scenario, lds; val=value)
 end
 
 # Welfare of the SQ allocation: CO (i) with a and z fixed, so only dispatch is chosen (an LP).
-# If lowering an earlier year broke feasibility, it shows up as shed (see the commented Proposition).
+# If lowering an earlier year broke feasibility, it shows up as shed.
 function evaluate_fixed(net::Network, sc::Scenario, lds, a_fix; tag="eval")
     m = build_co(net, sc, lds; variant=:i, shed=true)     # SQ's allocation may need a little shed; keep the slack
     fix_allocation!(m; z=Float64.(a_fix .> 0), a=a_fix)
@@ -39,7 +39,7 @@ end
 function cap_duals(m, net::Network, sc::Scenario, lds, z_opt; tag="duals")
     fix_allocation!(m; z=z_opt)
     solve_n1!(m, net, sc, 1:length(sc.years); tag=tag)
-    return [shadow_price(m[:cap][k, yi]) for k in 1:length(lds), yi in 1:length(sc.years)]   # $ per MW of request
+    return [shadow_price(m[:cap][k, yi]) for k in 1:length(lds), yi in 1:length(sc.years)]   # $/MW of request
 end
 
 # Stranded MW: after SQ, the most MW the loads zeroed by the threshold could still take
@@ -72,7 +72,7 @@ function stranded_mw(net::Network, sc::Scenario, lds, a_sq, amax; tag="stranded"
     return out
 end
 
-# One row per (model, year).
+# One row per (model, year)
 # Welfare is linear in v_k when v_k is equal for all loads, so MW_equiv and cost_M are reported too:
 #   welfare(v) = v * MW_equiv - cost_M   when v_k is equal for all loads,
 # and any v can be checked without rerunning. MW_equiv = firm MW + beta * average curtailable MW served.
