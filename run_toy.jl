@@ -1,4 +1,4 @@
-# run_toy.jl — 3-bus toy example for Sec. 5: queue order strands headroom that CO uses
+# run_toy.jl — 3-bus toy example: queue order strands headroom that CO uses
 #
 #        G1 (cheap, bus 1)
 #        /            \
@@ -63,7 +63,7 @@ show(df[df.year .== YEARS[1], [:model, :firm_GW, :total_GW, :MW_equiv_GW, :n_adm
 println()
 mkpath(joinpath(OUT_DIR, "toy")); CSV.write(joinpath(OUT_DIR, "toy", "summary.csv"), df)
 
-# ---- CO (iii) against the upgrade cost C_l (same for all three lines here) ----
+# CO (iii) against the upgrade cost C_l (same for all three lines)
 # TOY_C_SWEEP="2e4,2e5,5e5,1e6,2e6" in $/MW-yr; v_k = V_FIRM
 sweep = parse.(Float64, split(get(ENV, "TOY_C_SWEEP", "2e4,2e5,3e5,4e5,5e5,1e6"), ','))
 srows = NamedTuple[]
