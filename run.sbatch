@@ -8,7 +8,7 @@
 
 # submit from the batch0 folder (the job runs where you submit it), after mkdir -p logs
 # usage: sbatch run.sbatch                      (full study)
-#        MODELS=co3 N_LOADS=50 sbatch run.sbatch  (env vars pass through)
+# MODELS=co3 N_LOADS=50 sbatch run.sbatch  (env vars pass through)
 
 module load julia gurobi
 mkdir -p logs results
