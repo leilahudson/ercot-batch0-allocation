@@ -93,7 +93,7 @@ function shift_factors(nb, nl, fr, to, b, slack)
     return PTDF, LODF, cont_ok
 end
 
-# Small network built in code (toy example, Sec. 5)
+# Small network built in code (toy example)
 function make_network(; kv, area, Pd, fr, to, x, rate, gbus, Pmax, gamma, fuel=fill("ng", length(gbus)),
                         slack=1, C=fill(UPG_COST, length(fr)), xbar=UPG_MAX .* rate)
     nb, nl = length(Pd), length(fr)
