@@ -204,8 +204,7 @@ function cut_rounds!(m, net::Network, sc::Scenario, Y; tag="")
     return MOI.OTHER_LIMIT, false
 end
 
-# Feasible start for CO's MILP. On the full Texas case Gurobi found no integer solution in 4 h without one.
-# Candidates for z, tried in order: (1) the LP relaxation rounded, z = 1 where a load already gets at
+# Feasible start for CO's MILP. Candidates for z, tried in order: (1) the LP relaxation rounded, z = 1 where a load already gets at
 # least its threshold (any MW for a PCLR); (2) the warm start from the previous variant, if set;
 # (3) z = 0, which admits no load and is feasible whenever background demand is N-1 secure.
 # Each candidate is solved with z fixed (an LP) and N-1 cut rounds; the best one becomes the MIP start.
