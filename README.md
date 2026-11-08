@@ -1,7 +1,7 @@
 # Allocating transmission headroom to large loads in ERCOT's Batch Zero
 
-Code and data for my 15.S09 project (MIT, Fall 2026). It compares a status-quo queue-order study
-rule (SQ) with a coordinated allocation model (CO) that chooses every load's firm MW, curtailable MW
+Code and data for 15.S09 project (MIT, Fall 2026). Compares status-quo queue-order study
+rule (SQ) with coordinated allocation model (CO) that chooses every load's firm MW, curtailable MW
 and line upgrades at once, with every line secure after any single outage. CO is solved in three
 nested variants: (i) firm MW only, (ii) plus curtailable MW for PCLRs, (iii) plus line upgrades.
 
@@ -9,7 +9,7 @@ nested variants: (i) firm MW only, (ii) plus curtailable MW for PCLRs, (iii) plu
 
 | File | What it does |
 |---|---|
-| `config.jl` | Every setting (solver, data paths, parameters). Each can be overridden with an env var of the same name. |
+| `config.jl` | Settings (solver, data paths, parameters). Each can be overridden with an env var of the same name. |
 | `batch0.jl` | Loads config, the solver and the model files. Included by the run scripts. |
 | `network.jl` | Reads the MATPOWER case, builds PTDF and LODF, makes the toy network. |
 | `scenario.jl` | Hours, background demand, wind and solar availability, stress hours, large-load requests. |
@@ -17,11 +17,9 @@ nested variants: (i) firm MW only, (ii) plus curtailable MW for PCLRs, (iii) plu
 | `sq.jl` | The status-quo rule (base case, proportional generation response, queue order, threshold). |
 | `metrics.jl` | SQ welfare evaluation, stranded MW, request-cap duals, summary tables and CSVs. |
 | `run_toy.jl` | The three-bus example (proposal Section 5, final report Appendix A). |
-| `run_texas.jl` | The Texas study on ACTIVSg2000. |
 | `run.sbatch` | SLURM script used on MIT ORCD. |
 | `prep/` | Scripts that build `data/*.csv` from the raw data bundle. |
 | `results/toy/` | Toy results (`summary.csv`, `upgrade_cost_sweep.csv`). |
-| `results/texas_s2/` | Texas results behind the report's main table and figure, and the figure script. |
 
 ## Setup
 
@@ -37,7 +35,6 @@ julia --project=. -e 'using Pkg; Pkg.instantiate()'
 julia --project=. run_toy.jl                    # HiGHS
 SOLVER=gurobi julia --project=. run_toy.jl      # Gurobi
 ```
-
 Writes `results/toy/summary.csv` (proposal Table 1) and `results/toy/upgrade_cost_sweep.csv`.
 
 ## Reproduce the Texas results
