@@ -16,6 +16,7 @@ for all loads at once, N-1 secure. Three versions: (i) firm only, (ii) + curtail
 - `sq.jl` – status-quo rule
 - `metrics.jl` – welfare and output tables
 - `run_toy.jl` – 3-bus example
+- run.sbatch – SLURM script for the cluster
 
 ## Run
 
