@@ -6,7 +6,6 @@
 #   run_sq_prop  fixed base dispatch + proportional generation response (default, study practice)
 #   run_sq_lp    best possible dispatch for each load (original rule)
 
-
 function queue_order(lds::Vector{LargeLoad}, rule::Symbol; seed=SEED)
     rule == :random   && return shuffle(MersenneTwister(seed + 100), collect(1:length(lds)))
     rule == :smallest && return sortperm([l.Lmax for l in lds])
@@ -61,8 +60,7 @@ function min_later_years(a_raw)
     return a_sq
 end
 
-# ---------------------------------------------------------------------------------------------
-# Study-practice SQ. For each year:
+# Study-practice SQ; for each year:
 #  1. base case: least-cost dispatch p0 of background demand only, intact and N-1 limits (the
 #     secure starting case a planner would study from), flows F0
 #  2. each MW of a studied load at bus b is balanced by raising generator g by pi_g,t, its share of
@@ -72,7 +70,6 @@ end
 #     headroom is not exceeded. The flows then include that load before the next one is studied.
 # Closed form per load, no LP. Ignoring factors below SQ_DFAX_MIN is the usual materiality rule; it
 # means many small impacts can add up, which shows up as shed in the SQ welfare evaluation.
-# ---------------------------------------------------------------------------------------------
 
 # base case for year yi: secure least-cost dispatch without studied loads
 function sq_base_case(net::Network, sc::Scenario, yi; tag="SQ base")
