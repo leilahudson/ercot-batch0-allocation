@@ -1,4 +1,4 @@
-# batch0.jl — include this from a run script; loads config, solver and all model files
+# batch0.jl — loads config, solver and model files
 
 using Printf, Random
 include("config.jl")
@@ -8,7 +8,7 @@ include("config.jl")
 SOLVER == "gurobi" && @eval using Gurobi
 const GRB_ENV = Ref{Any}(nothing)
 SOLVER == "gurobi" && (GRB_ENV[] = Gurobi.Env())     # one license checkout for the whole run
-SOLVER == "glpk" && @eval using GLPK                    # local tests of the lazy N-1 callback (HiGHS has none)
+SOLVER == "glpk" && @eval using GLPK                 # local tests of the lazy N-1 callback (HiGHS has none)
 
 include("network.jl")
 include("scenario.jl")
