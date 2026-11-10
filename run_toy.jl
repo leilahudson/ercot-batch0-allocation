@@ -12,6 +12,8 @@
 # SQ, order D, A, B, C: D takes 120 MW firm. Each MW is met by G1 and G2 in proportion to headroom,
 #   so 920/970 of it crosses a line out of bus 1, and A, B, C are each offered 38.2 MW, all below the
 #   100 MW threshold, so all three get 0 (38.2 MW stranded, 41.8 MW lost to the fixed response).
+# BZ (ERCOT's Batch Zero rule) also reaches 200 MW in its SCOPF, but the threshold then removes any
+#   load the SCOPF left below 100 MW, so it keeps 120, 150, 190 or 200 MW depending on the tie-break.
 # CO (i) fills the 200 MW of peak headroom (e.g. D 80 + B 120; which loads is not unique).
 # CO (ii) adds 40 MW of curtailable load off-peak (D's PCLR share).
 # CO (iii) buys rating on lines 1-2 and 1-3; how much depends on C_l / v_k, see the sweep at the end.
@@ -28,11 +30,11 @@ D  = zeros(net.nb, length(YEARS), 2)
 for yi in 1:length(YEARS), t in 1:2; D[:, yi, t] .= net.Pd .* lf[t]; end
 sc = Scenario(YEARS, 2, Nt, [true, false], D, repeat(net.Pmax, 1, 2), ["peak", "offpeak"], [1, 2])
 
-#            k  bus  area  L by year             Lmax   pclr   phi  theta  eps       v
-lds = [LargeLoad(1, 2, 1, [120.0, 120.0, 120.0], 120.0, true,  0.5, 100.0, EPS_CURT, V_FIRM),   # D, PCLR
-       LargeLoad(2, 2, 1, [150.0, 150.0, 150.0], 150.0, false, 0.0, 100.0, EPS_CURT, V_FIRM),   # A
-       LargeLoad(3, 3, 1, [120.0, 120.0, 120.0], 120.0, false, 0.0, 100.0, EPS_CURT, V_FIRM),   # B
-       LargeLoad(4, 3, 1, [120.0, 120.0, 120.0], 120.0, false, 0.0, 100.0, EPS_CURT, V_FIRM)]   # C
+#            k  bus  area  L by year             Lmax   pclr   phi  theta  v
+lds = [LargeLoad(1, 2, 1, [120.0, 120.0, 120.0], 120.0, true,  0.5, 100.0, V_FIRM),   # D, PCLR
+       LargeLoad(2, 2, 1, [150.0, 150.0, 150.0], 150.0, false, 0.0, 100.0, V_FIRM),   # A
+       LargeLoad(3, 3, 1, [120.0, 120.0, 120.0], 120.0, false, 0.0, 100.0, V_FIRM),   # B
+       LargeLoad(4, 3, 1, [120.0, 120.0, 120.0], 120.0, false, 0.0, 100.0, V_FIRM)]   # C
 
 rows = NamedTuple[]
 a_sq, a_raw, amax = run_sq(net, sc, lds, [1, 2, 3, 4]; tag="SQ")
@@ -41,6 +43,23 @@ strand = stranded(net, sc, lds, a_sq, a_raw, amax, [1, 2, 3, 4])
 append!(rows, summary_rows("SQ", sol, sc, lds; amax=amax, stranded=strand))
 println("SQ offered (before threshold), 2028: ", round.(amax[:, 1], digits=1), "  kept: ", round.(a_sq[:, 1], digits=1),
         "  stranded: ", round(strand[1], digits=1), " MW")
+
+# BZ over tie-breaking draws; one row per draw in bz_draws.csv, and the draws with the fewest and
+# the most firm MW go into summary.csv as BZ_min and BZ_max
+bz = NamedTuple[]; bz_sol = Dict{Int,Any}()
+for d in 1:BZ_DRAWS
+    a_bz, _, amax_bz = run_bz(net, sc, lds; draw=d, tag="BZ $d")
+    s = evaluate_fixed(net, sc, lds, a_bz; tag="BZ eval $d")
+    bz_sol[d] = (s, amax_bz)
+    r = summary_rows("BZ", s, sc, lds; amax=amax_bz)[1]
+    push!(bz, (draw=d, scopf_MW=join(round.(amax_bz[:, 1], digits=1), " "), kept_MW=join(round.(a_bz[:, 1], digits=1), " "),
+               firm_MW=r.firm_GW * 1e3, welfare_M=r.welfare_M, shed_MWh=r.shed_MWh))
+end
+bzdf = DataFrame(bz)
+for (lab, d) in (("BZ_min", bzdf.draw[argmin(bzdf.firm_MW)]), ("BZ_max", bzdf.draw[argmax(bzdf.firm_MW)]))
+    append!(rows, summary_rows(lab, bz_sol[d][1], sc, lds; amax=bz_sol[d][2]))
+end
+println("BZ firm MW by draw (2028): ", round.(bzdf.firm_MW, digits=1))
 
 for var in (:i, :ii, :iii)
     m = build_co(net, sc, lds; variant=var)
@@ -51,7 +70,7 @@ for var in (:i, :ii, :iii)
             "  upgrades = ", round.(s.x[:, 1], digits=1))
     if var == :iii
         du = cap_duals(m, net, sc, lds, s.z)              # $/MW-yr of extra request, z fixed at the optimum
-        # requests are flat across years and (11) ties the years together, so the LP dual can sit in any
+        # requests are flat across years and (9) ties the years together, so the LP dual can sit in any
         # year (degenerate); only the sum over years is unique: one more MW of request in every year
         println("CO-iii request-cap duals summed over years [\$/MW]: ", round.(vec(sum(du, dims=2)), digits=0))
     end
@@ -62,6 +81,7 @@ show(df[df.year .== YEARS[1], [:model, :firm_GW, :total_GW, :MW_equiv_GW, :n_adm
                                 :stranded_GW, :cost_M, :welfare_M, :upg_GW, :shed_MWh]], allrows=true, allcols=true)
 println()
 mkpath(joinpath(OUT_DIR, "toy")); CSV.write(joinpath(OUT_DIR, "toy", "summary.csv"), df)
+CSV.write(joinpath(OUT_DIR, "toy", "bz_draws.csv"), bzdf)
 
 # CO (iii) against the upgrade cost C_l (same for all three lines)
 # TOY_C_SWEEP="2e4,2e5,5e5,1e6,2e6" in $/MW-yr; v_k = V_FIRM

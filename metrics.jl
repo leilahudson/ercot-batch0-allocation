@@ -35,7 +35,7 @@ function evaluate_fixed(net::Network, sc::Scenario, lds, a_fix; tag="eval")
 end
 
 # Marginal value of headroom: fix z at the CO optimum, solve the LP, read the dual of (6).
-# (11) links the years, so a single year's dual is not unique; compare loads on the sum over years.
+# (9) links the years, so a single year's dual is not unique; compare loads on the sum over years.
 function cap_duals(m, net::Network, sc::Scenario, lds, z_opt; tag="duals")
     fix_allocation!(m; z=z_opt)
     solve_n1!(m, net, sc, 1:length(sc.years); tag=tag)
@@ -112,19 +112,4 @@ function write_allocations(dir, label, sol, sc::Scenario, lds; amax=nothing, dua
                      amax=amax === nothing ? NaN : amax[k, yi], cap_dual=duals === nothing ? NaN : duals[k, yi]))
     end
     CSV.write(joinpath(dir, "alloc_$(label).csv"), DataFrame(rows))
-end
-
-# Read a previous run's alloc_<model>.csv back as a warm start (a, f, z), for WARM_FROM in run_texas.jl.
-# Same data, seed and stride give the same loads, so k and year line up.
-function read_alloc_start(path, sc::Scenario, lds)
-    df = CSV.read(path, DataFrame)
-    K, nY = length(lds), length(sc.years)
-    a = zeros(K, nY); f = zeros(K, nY)
-    for r in eachrow(df)
-        yi = findfirst(==(r.year), sc.years)
-        yi === nothing && continue
-        a[r.k, yi] = r.a; f[r.k, yi] = r.f
-    end
-    @assert maximum(df.k) == K "WARM_FROM has $(maximum(df.k)) loads, this run has $K"
-    return (a=a, f=f, z=Float64.(a .+ f .> 1e-3))
 end

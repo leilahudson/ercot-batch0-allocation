@@ -9,11 +9,11 @@ _env(k, d::Bool)    = lowercase(get(ENV, k, string(d))) == "true"
 const SOLVER      = _env("SOLVER", "highs")        # "gurobi" on ORCD, "highs" for local tests
 const THREADS     = _env("THREADS", 8)
 const MIP_GAP     = _env("MIP_GAP", 5e-3)          # relative to an objective dominated by background generation cost
-const TIME_LIMIT  = _env("TIME_LIMIT", 14400.0)    # s per solve; CO (iii) on 50 loads x 72 h needed more than 1 h
-const MILP_TIME   = _env("MILP_TIME", 10800.0)
-const START_TIME  = _env("START_TIME", 1200.0)      # s per solve when testing a start candidate; an infeasible candidate
-                                                    # (too many loads forced to their threshold) is then dropped quickly       # s for CO's branch and bound; it starts from a feasible solution and
-                                                    # bounds.csv records the gap to the LP bound, so a short run is still certified
+const TIME_LIMIT  = _env("TIME_LIMIT", 14400.0)    # s per solve
+const MILP_TIME   = _env("MILP_TIME", 10800.0)      # s for CO's branch and bound. It starts from a feasible solution and the
+                                                    # log reports the gap to the LP bound, so a short run is still certified
+const START_TIME  = _env("START_TIME", 1200.0)      # s per solve when testing a start candidate, so an infeasible candidate
+                                                    # (too many loads forced to their threshold) is dropped quickly
 const VERBOSE     = _env("VERBOSE", false)          # solver log on/off
 const GRB_NODEFILE = _env("GRB_NODEFILE", 8.0)      # GB of branch-and-bound nodes held in memory before Gurobi writes them to disk (0 = never)
 const GRB_METHOD  = _env("GRB_METHOD", -1)          # Gurobi Method for CO: -1 auto, 1 dual simplex, 2 barrier
@@ -62,17 +62,20 @@ const THRESH_SHR  = 0.9
 # "prop": study practice. Secure least-cost base dispatch without the studied loads; each load is
 #   balanced by raising all generators in proportion to their headroom; a load is limited only by
 #   (post-)contingency constraints where its distribution factor is at least SQ_DFAX_MIN.
-# "lp":   each load gets the most MW over every possible dispatch (the original rule). One load can
-#   use up all redispatch flexibility and block every later load, so use only for comparison.
+# "lp":   each load gets the most MW over every possible dispatch. One load can use up all
+#   redispatch flexibility and block every later load, so use only for comparison.
 const SQ_RULE     = _env("SQ_RULE", "prop")
 const SQ_DFAX_MIN = _env("SQ_DFAX_MIN", 0.03)       # materiality cutoff on MW flow per MW of load
+
+# Batch Zero rule (bz.jl)
+const BZ_DRAWS    = _env("BZ_DRAWS", 20)            # tie-breaking draws
+const BZ_TIE      = _env("BZ_TIE", 1e-3)            # w_k uniform on [0, BZ_TIE], load k valued at v_k (1 + w_k)
 
 # economics (objective)
 const V_FIRM      = _env("V_FIRM", 1.0e6)           # v_k [$/MW-yr], equal for all loads
 const BETA        = _env("BETA", 0.7)               # \beta
-const EPS_CURT    = _env("EPS_CURT", 0.0025)        # \varepsilon_k, Norris et al. 0.25%
 const DELTA       = Dict(2028 => 1.0, 2030 => 1.0, 2032 => 1.0)   # \delta_y
-# Background shed is a slack, NOT in the proposal; it should be 0 in every run. The penalties must be
+# Background shed is a slack that is not part of the model in the proposal; it should be 0 in every run. The penalties must be
 # large: one MW shed at the right bus can relieve a binding line enough to admit 100+ MW of load,
 # so a weak penalty lets the model trade background demand for large load.
 const VOLL        = _env("VOLL", 1.0e6)             # CO [$/MWh]

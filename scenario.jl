@@ -21,7 +21,6 @@ struct LargeLoad
     pclr::Bool                       # k \in \mathcal K^P
     phi::Float64                     # \phi_k (0 if not PCLR)
     theta::Float64                   # \theta_k
-    eps::Float64                     # \varepsilon_k
     v::Float64                       # v_k
 end
 
@@ -155,7 +154,7 @@ function sample_loads(net::Network; n=N_LOADS, total_gw=TOTAL_GW, seed=SEED, zon
         L = sz[k] .* [r1, r2, 1.0]
         pclr = rand(rng) < P_PCLR
         phi = pclr ? 0.3 + 0.4 * rand(rng) : 0.0
-        push!(loads, LargeLoad(k, bus, a, L, sz[k], pclr, phi, theta_k(sz[k]), EPS_CURT, V_FIRM))
+        push!(loads, LargeLoad(k, bus, a, L, sz[k], pclr, phi, theta_k(sz[k]), V_FIRM))
     end
     @printf("[LDS] %d requests, %.1f GW in %d (%.1f GW in %d), %d PCLR\n", n, sum(l.L[end] for l in loads) / 1e3,
             YEARS[end], sum(l.L[1] for l in loads) / 1e3, YEARS[1], sum(l.pclr for l in loads))
@@ -177,7 +176,7 @@ function dc_loads(net::Network, sites; n=N_LOADS, seed=SEED)
         r1 = 0.2 + 0.4 * rand(rng); r2 = r1 + (1 - r1) * rand(rng)
         pclr = rand(rng) < P_PCLR
         phi = pclr ? 0.3 + 0.4 * rand(rng) : 0.0
-        push!(loads, LargeLoad(k, r.bus, r.area, sz .* [r1, r2, 1.0], sz, pclr, phi, theta_k(sz), EPS_CURT, V_FIRM))
+        push!(loads, LargeLoad(k, r.bus, r.area, sz .* [r1, r2, 1.0], sz, pclr, phi, theta_k(sz), V_FIRM))
     end
     @printf("[LDS] %d data center requests, %.1f GW in %d (%.1f GW in %d), %d PCLR, %d below the %.0f MW threshold size\n",
             length(loads), sum(l.L[end] for l in loads) / 1e3, YEARS[end], sum(l.L[1] for l in loads) / 1e3, YEARS[1],

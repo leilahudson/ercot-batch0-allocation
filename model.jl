@@ -32,13 +32,13 @@ function add_network!(m, net::Network, sc::Scenario, Y, wd; shed::Bool=true)
     T = sc.T
     @variable(m, θ[1:net.nb, Y, 1:T])
     @variable(m, 0 <= p[g=1:net.ng, yi=Y, t=1:T] <= sc.Pbar[g, t])                   # (3)
-    if shed      # VOLL slack, not in the proposal; 2000 x years x hours variables, so CO leaves it out
+    if shed      # VOLL slack, not part of the model in the proposal; nb x years x hours variables, so CO leaves it out
         @variable(m, 0 <= shed[n=1:net.nb, yi=Y, t=1:T] <= sc.D[n, yi, t])
     else
         m[:shed] = JuMP.Containers.DenseAxisArray([AffExpr(0.0) for n in 1:net.nb, yi in Y, t in 1:T], 1:net.nb, Y, 1:T)
     end
     shed = m[:shed]
-    @variable(m, 0 <= x[l=1:net.nl, yi=Y] <= net.xbar[l])                            # (12) upper bound
+    @variable(m, 0 <= x[l=1:net.nl, yi=Y] <= net.xbar[l])                            # (10) upper bound
     for yi in Y, t in 1:T
         fix(θ[net.slack, yi, t], 0.0; force=true)
     end
@@ -57,7 +57,7 @@ function add_network!(m, net::Network, sc::Scenario, Y, wd; shed::Bool=true)
     @constraint(m, flo_up[l=1:net.nl, yi=Y, t=1:T],  F[l, yi, t] <= net.rate[l] + x[l, yi])
     @constraint(m, flo_dn[l=1:net.nl, yi=Y, t=1:T], -F[l, yi, t] <= net.rate[l] + x[l, yi])
 
-    # (12) upgrades stay once built; non-expandable lines get none
+    # (10) upgrades stay once built; non-expandable lines get none
     Yv = collect(Y)
     for i in 1:length(Yv)-1, l in 1:net.nl
         @constraint(m, x[l, Yv[i]] <= x[l, Yv[i+1]])
@@ -217,7 +217,7 @@ function round_and_repair!(m, net::Network, sc::Scenario, Y, lp_bound, aLP, fLP;
     function rounded(frac)            # z = 1 where the LP gives at least frac * threshold (any MW for a PCLR)
         zr = [lds[k].pclr ? Float64(aL[k, yi] + fL[k, yi] > 1e-3) : Float64(aL[k, yi] >= frac * lds[k].theta - 1e-6)
               for k in 1:K, yi in 1:nY]
-        for k in 1:K, yi in 2:nY; zr[k, yi] = max(zr[k, yi], zr[k, yi-1]); end       # (11)
+        for k in 1:K, yi in 2:nY; zr[k, yi] = max(zr[k, yi], zr[k, yi-1]); end       # (9)
         return zr
     end
     # the relaxation spreads MW thinly (it ignores the threshold), so also try admitting loads at half the
@@ -301,7 +301,7 @@ function use_start_if_better!(m, net::Network, sc::Scenario, Y, st; tag="")
     return MOI.TIME_LIMIT                                            # feasible, not proven optimal
 end
 
-# Coordinated model, eq. (1)-(12).
+# Coordinated model, eq. (1)-(10).
 #   variant :i   firm only   (f = 0, x = 0)
 #   variant :ii  + curtailable (x = 0)
 #   variant :iii + upgrades
@@ -310,8 +310,9 @@ function build_co(net::Network, sc::Scenario, lds::Vector{LargeLoad}; variant::S
     K, Y, T = 1:length(lds), 1:length(sc.years), 1:sc.T
     @variable(m, a[K, Y] >= 0)                       # firm allocation
     @variable(m, f[K, Y] >= 0)                       # curtailable allocation above a
-    @variable(m, q[K, Y, T] >= 0)                    # curtailable demand served in hour t
     @variable(m, z[K, Y], Bin)                       # admitted
+    # curtailable demand served in hour t: all of f outside stress hours, none in them (u_t f)
+    @expression(m, q[k=K, yi=Y, t=T], sc.stress[t] ? AffExpr(0.0) : 1.0 * f[k, yi])
 
     m[:lds] = lds
     loads_at = [Int[] for _ in 1:net.nb]; for k in K; push!(loads_at[lds[k].bus], k); end
@@ -324,14 +325,8 @@ function build_co(net::Network, sc::Scenario, lds::Vector{LargeLoad}; variant::S
         ld = lds[k]
         @constraint(m, f[k, yi] <= ld.phi * ld.L[yi] * z[k, yi])                         # (7)
         ld.pclr || @constraint(m, a[k, yi] >= ld.theta * z[k, yi])                       # (8)
-        for t in T
-            @constraint(m, q[k, yi, t] <= f[k, yi])                                      # (9)
-            sc.stress[t] && fix(q[k, yi, t], 0.0; force=true)                            # (9) off in stress hours
-        end
-        @constraint(m, sum(sc.Nt[t] * (f[k, yi] - q[k, yi, t]) for t in T if !sc.stress[t])
-                       <= ld.eps * N_YR * (a[k, yi] + f[k, yi]))                         # (10)
     end
-    for k in K, yi in 1:length(Y)-1                                                       # (11), consecutive years suffice
+    for k in K, yi in 1:length(Y)-1                                                       # (9), consecutive years suffice
         @constraint(m, z[k, yi] <= z[k, yi+1])
         @constraint(m, a[k, yi] <= a[k, yi+1])
         @constraint(m, a[k, yi] + f[k, yi] <= a[k, yi+1] + f[k, yi+1])
@@ -341,10 +336,7 @@ function build_co(net::Network, sc::Scenario, lds::Vector{LargeLoad}; variant::S
         for l in 1:net.nl, yi in Y; fix(x[l, yi], 0.0; force=true); end
     end
     if variant == :i
-        for k in K, yi in Y
-            fix(f[k, yi], 0.0; force=true)
-            for t in T; fix(q[k, yi, t], 0.0; force=true); end
-        end
+        for k in K, yi in Y; fix(f[k, yi], 0.0; force=true); end
     end
 
     # (1) welfare; shed penalty added so a background-demand shortfall shows up instead of infeasibility

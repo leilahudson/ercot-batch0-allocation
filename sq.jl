@@ -1,10 +1,10 @@
-# sq.jl — status-quo queue-order rule (Appendix A)
+# sq.jl — status-quo queue-order rule (SQ)
 # Each year on its own: loads in queue order, each gets the most firm MW (up to its request) that
 # keeps the study's limits satisfied given the loads ahead of it, f = 0, x = 0. Below threshold -> 0
-# (PCLRs are exempt). Afterwards a_{k,y} <- min_{y' >= y} a_{k,y'} (Planning Guide 9.3.2(6)).
+# (PCLRs are exempt). Afterwards a_{k,y} <- min_{y' >= y} a_{k,y'}, the rule ERCOT uses in Batch Zero.
 # Two versions of "keeps the limits satisfied", chosen by SQ_RULE (config.jl):
 #   run_sq_prop  fixed base dispatch + proportional generation response (default, study practice)
-#   run_sq_lp    best possible dispatch for each load (original rule)
+#   run_sq_lp    best possible dispatch for each load (comparison only)
 
 function queue_order(lds::Vector{LargeLoad}, rule::Symbol; seed=SEED)
     rule == :random   && return shuffle(MersenneTwister(seed + 100), collect(1:length(lds)))
@@ -47,11 +47,11 @@ function run_sq_lp(net::Network, sc::Scenario, lds::Vector{LargeLoad}, order::Ve
                 sum(a_raw[:, yi]) / 1e3, sum(a_raw[:, yi] .> 0),
                 sum(!lds[k].pclr && 1e-3 < amax[k, yi] < lds[k].theta for k in 1:K), time() - t0)
     end
-    # a shortfall in a later year lowers the earlier ones too (keeps (11))
+    # a shortfall in a later year lowers the earlier ones too (keeps (9))
     return min_later_years(a_raw), a_raw, amax
 end
 
-# a shortfall in a later year lowers the earlier ones too (keeps (11), Planning Guide 9.3.2(6))
+# a shortfall in a later year lowers the earlier ones too (keeps (9), as ERCOT does in Batch Zero)
 function min_later_years(a_raw)
     a_sq = copy(a_raw)
     for k in axes(a_raw, 1), yi in axes(a_raw, 2)
