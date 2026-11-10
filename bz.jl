@@ -1,10 +1,12 @@
 # bz.jl — ERCOT's Batch Zero rule (BZ) as we model it
-# ERCOT allocates peak demand with a SCOPF whose objective is not published. We use CO (i)'s objective
+# ERCOT allocates peak demand with a SCOPF whose objective is not published. We use OPT (i)'s objective
 # with the threshold (8) removed and z = 1, one LP per year: firm MW only, f = 0, x = 0, N-1 secure in
 # every modeled hour. With equal v_k the LP usually has many optimal allocations, so each draw values
 # load k at v_k (1 + w_k), w_k uniform on [0, BZ_TIE], to pick one. Then allocations below the threshold
 # go to zero with no reallocation, and a_{k,y} <- min_{y' >= y} a_{k,y'}. Zeroing below a threshold and
-# taking the minimum commute, so the order of the two steps does not matter.
+# taking the minimum commute, so the order of the two steps does not matter. The result is each load's
+# LPC. A PCLR is studied at its requested peak, so it also gets the rest, f = L - a, as curtailable MW
+# that the dispatch serves as far as the network allows outside stress hours.
 
 function run_bz(net::Network, sc::Scenario, lds::Vector{LargeLoad}; draw::Int=1, tag="BZ")
     K, nY = length(lds), length(sc.years)
@@ -30,5 +32,16 @@ function run_bz(net::Network, sc::Scenario, lds::Vector{LargeLoad}; draw::Int=1,
             a_raw[k, yi] = keep ? amax[k, yi] : 0.0
         end
     end
-    return min_later_years(a_raw), a_raw, amax
+    a_bz = min_later_years(a_raw)
+    f_bz = [lds[k].pclr ? lds[k].L[yi] - a_bz[k, yi] : 0.0 for k in 1:K, yi in 1:nY]
+    return a_bz, f_bz, amax
+end
+
+# a shortfall in a later year lowers the earlier ones too, as ERCOT does in Batch Zero (keeps (10))
+function min_later_years(a_raw)
+    a = copy(a_raw)
+    for k in axes(a_raw, 1), yi in axes(a_raw, 2)
+        a[k, yi] = minimum(a_raw[k, yi:end])
+    end
+    return a
 end

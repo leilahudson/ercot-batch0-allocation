@@ -13,6 +13,5 @@ SOLVER == "glpk" && @eval using GLPK                 # local tests of the lazy N
 include("network.jl")
 include("scenario.jl")
 include("model.jl")
-include("sq.jl")
 include("bz.jl")
 include("metrics.jl")

@@ -10,14 +10,13 @@ const SOLVER      = _env("SOLVER", "highs")        # "gurobi" on ORCD, "highs" f
 const THREADS     = _env("THREADS", 8)
 const MIP_GAP     = _env("MIP_GAP", 5e-3)          # relative to an objective dominated by background generation cost
 const TIME_LIMIT  = _env("TIME_LIMIT", 14400.0)    # s per solve
-const MILP_TIME   = _env("MILP_TIME", 10800.0)      # s for CO's branch and bound. It starts from a feasible solution and the
+const MILP_TIME   = _env("MILP_TIME", 10800.0)      # s for OPT's branch and bound. It starts from a feasible solution and the
                                                     # log reports the gap to the LP bound, so a short run is still certified
 const START_TIME  = _env("START_TIME", 1200.0)      # s per solve when testing a start candidate, so an infeasible candidate
                                                     # (too many loads forced to their threshold) is dropped quickly
 const VERBOSE     = _env("VERBOSE", false)          # solver log on/off
 const GRB_NODEFILE = _env("GRB_NODEFILE", 8.0)      # GB of branch-and-bound nodes held in memory before Gurobi writes them to disk (0 = never)
-const GRB_METHOD  = _env("GRB_METHOD", -1)          # Gurobi Method for CO: -1 auto, 1 dual simplex, 2 barrier
-const SQ_METHOD   = _env("SQ_METHOD", 1)            # SQ: dual simplex, warm-starts each load and each cut round
+const GRB_METHOD  = _env("GRB_METHOD", -1)          # Gurobi Method for OPT: -1 auto, 1 dual simplex, 2 barrier
 
 # data
 const DATA_DIR    = joinpath(@__DIR__, "data")
@@ -58,15 +57,6 @@ const SEED        = _env("SEED", 1)
 const THRESH_MW   = 100.0                           # \theta_k rule (ERCOT comments, May 2026)
 const THRESH_SHR  = 0.9
 
-# status-quo study rule (sq.jl)
-# "prop": study practice. Secure least-cost base dispatch without the studied loads; each load is
-#   balanced by raising all generators in proportion to their headroom; a load is limited only by
-#   (post-)contingency constraints where its distribution factor is at least SQ_DFAX_MIN.
-# "lp":   each load gets the most MW over every possible dispatch. One load can use up all
-#   redispatch flexibility and block every later load, so use only for comparison.
-const SQ_RULE     = _env("SQ_RULE", "prop")
-const SQ_DFAX_MIN = _env("SQ_DFAX_MIN", 0.03)       # materiality cutoff on MW flow per MW of load
-
 # Batch Zero rule (bz.jl)
 const BZ_DRAWS    = _env("BZ_DRAWS", 20)            # tie-breaking draws
 const BZ_TIE      = _env("BZ_TIE", 1e-3)            # w_k uniform on [0, BZ_TIE], load k valued at v_k (1 + w_k)
@@ -78,12 +68,11 @@ const DELTA       = Dict(2028 => 1.0, 2030 => 1.0, 2032 => 1.0)   # \delta_y
 # Background shed is a slack that is not part of the model in the proposal; it should be 0 in every run. The penalties must be
 # large: one MW shed at the right bus can relieve a binding line enough to admit 100+ MW of load,
 # so a weak penalty lets the model trade background demand for large load.
-const VOLL        = _env("VOLL", 1.0e6)             # CO [$/MWh]
-const CO_SHED     = _env("CO_SHED", false)          # shed slack in CO; off saves ~40% of CO's variables (shed was 0 in every CO run)
-const SQ_SHED_PEN = _env("SQ_SHED_PEN", 1.0e6)      # SQ, per avg MW shed (objective is MW of the load being studied)
+const VOLL        = _env("VOLL", 1.0e6)             # [$/MWh]
+const OPT_SHED    = _env("OPT_SHED", false)         # shed slack in OPT; off saves ~40% of OPT's variables
 
 # N-1 constraint generation 
-const N1_TOL      = _env("N1_TOL", 0.01)            # MW, violation tolerance (keep small, see sq.jl)
+const N1_TOL      = _env("N1_TOL", 0.01)            # MW, violation tolerance (keep small)
 const N1_MAXCUTS  = _env("N1_MAXCUTS", 20000)       # cuts added per round (5000 was hit in the first rounds on the full case)
 const N1_ROUNDS   = _env("N1_ROUNDS", 30)
 const N1_ON       = _env("N1_ON", true)             # false = intact limits only (debugging)
