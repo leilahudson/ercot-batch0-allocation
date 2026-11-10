@@ -1,13 +1,11 @@
-# bz.jl — ERCOT's Batch Zero rule (BZ) as we model it
-# ERCOT allocates peak demand with a SCOPF whose objective is not published. We use OPT (i)'s objective
+# bz.jl — ERCOT's modeled Batch Zero rule (BZ)
+# ERCOT allocates peak demand with a SCOPF whose objective is not published. Use OPT (i)'s objective
 # with the threshold (8) removed and z = 1, one LP per year: firm MW only, f = 0, x = 0, N-1 secure in
 # every modeled hour. With equal v_k the LP usually has many optimal allocations, so each draw values
 # load k at v_k (1 + w_k), w_k uniform on [0, BZ_TIE], to pick one. Then allocations below the threshold
-# go to zero with no reallocation, and a_{k,y} <- min_{y' >= y} a_{k,y'}. Zeroing below a threshold and
-# taking the minimum commute, so the order of the two steps does not matter. The result is each load's
+# go to zero with no reallocation, and a_{k,y} <- min_{y' >= y} a_{k,y'}. The result is each load's
 # LPC. A PCLR is studied at its requested peak, so it also gets the rest, f = L - a, as curtailable MW
 # that the dispatch serves as far as the network allows outside stress hours.
-
 function run_bz(net::Network, sc::Scenario, lds::Vector{LargeLoad}; draw::Int=1, tag="BZ")
     K, nY = length(lds), length(sc.years)
     w = BZ_TIE .* rand(MersenneTwister(SEED + 1000 + draw), K)
