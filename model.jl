@@ -1,5 +1,4 @@
-# model.jl — DC network core, N-1 constraint generation, and the allocation model OPT
-
+# model.jl — DC network, N-1 constraint generation, allocation model OPT
 using JuMP, HiGHS, Printf
 
 function new_model(; method::Int=GRB_METHOD)
